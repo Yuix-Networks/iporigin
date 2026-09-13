@@ -1,0 +1,45 @@
+name: Refresh dataset
+
+# The provider feeds move constantly. Rebuild weekly and open a PR when the
+# result differs, so a data change is reviewed like any other change rather
+# than landing silently on main.
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rebuild
+        run: python tools/build_dataset.py
+
+      - name: Verify the rebuilt dataset still works
+        run: |
+          pip install -e ".[dev]"
+          pytest -q
+
+      - uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "data: refresh provider ranges"
+          branch: data/refresh
+          delete-branch: true
+          title: "Refresh provider IP ranges"
+          body: |
+            Weekly rebuild of `src/iporigin/data/ranges.bin` from the
+            upstream provider feeds listed in `tools/sources.py`.
+
+            The test suite passed against the rebuilt data. Check the
+            reported range counts below for anything that looks like a feed
+            having a bad day — a provider dropping to zero prefixes means
+            its endpoint changed, not that it gave up its address space.
