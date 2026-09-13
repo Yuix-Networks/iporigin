@@ -13,10 +13,13 @@ live lookup that also covers consumer VPN exit nodes.
 
 from ._data import DatasetError
 from .core import (
+    ANONYMIZER_KINDS,
+    BOT,
     CDN,
     DATACENTER_KINDS,
     HOSTING,
     RESERVED,
+    TOR,
     UNKNOWN,
     VPN,
     Origin,
@@ -29,12 +32,15 @@ from .core import (
 __version__ = "1.0.0"
 
 __all__ = [
+    "ANONYMIZER_KINDS",
+    "BOT",
     "CDN",
     "DATACENTER_KINDS",
     "DatasetError",
     "HOSTING",
     "Origin",
     "RESERVED",
+    "TOR",
     "UNKNOWN",
     "VPN",
     "classify",

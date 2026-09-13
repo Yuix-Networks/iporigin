@@ -13,7 +13,8 @@ False
 ```
 
 No network calls. No signup. No runtime dependencies. The answer comes from
-a 140 KB table compiled out of eleven providers' own published IP feeds.
+a bundled table of 33,000 ranges covering 37 hosting providers, CDNs,
+consumer VPNs, Tor and declared crawlers.
 
 ## Install
 
@@ -49,13 +50,27 @@ origin.is_datacenter # True
 
 `kind` is one of:
 
-| kind | meaning |
-| --- | --- |
-| `hosting` | a machine in a cloud or hosting provider |
-| `cdn` | edge infrastructure fronting other people's sites |
-| `vpn` | a consumer VPN exit node (online lookup only, see below) |
-| `reserved` | private, loopback, link-local, documentation |
-| `unknown` | in none of our lists — most often a residential ISP |
+| kind | meaning | examples |
+| --- | --- | --- |
+| `hosting` | a machine in a cloud or hosting provider | AWS, Hetzner, OVHcloud |
+| `cdn` | edge infrastructure fronting other people's sites | Cloudflare, Akamai |
+| `vpn` | a consumer VPN or private relay exit | Mullvad, ProtonVPN, Apple Private Relay |
+| `tor` | a Tor exit node | |
+| `bot` | a declared crawler | Googlebot, GPTBot, ClaudeBot |
+| `reserved` | private, loopback, link-local, documentation | `127.0.0.1`, `10.0.0.0/8` |
+| `unknown` | in none of our lists — most often a residential ISP | |
+
+Two sets are exported for the common decisions:
+
+```python
+origin.kind in iporigin.DATACENTER_KINDS   # a machine, not a home line
+origin.kind in iporigin.ANONYMIZER_KINDS   # vpn or tor
+```
+
+They are deliberately different questions. Someone arriving through Mullvad
+is a person at home, but the address they arrive *from* is a server — so it
+is in both sets, and you may well want to rate-limit one and refuse the
+other.
 
 `unknown` means *absence of evidence*. It is not a positive claim that the
 address is residential, and the difference matters if you are going to block
@@ -85,10 +100,11 @@ $ cut -d' ' -f1 access.log | iporigin --datacenter-only --json
 
 `iporigin --info` prints what is in the bundled dataset and when it was built.
 
-### Consumer VPNs
+### Going beyond the bundled table
 
-No VPN company publishes its exit-node ranges, so the offline table cannot
-contain them. When that matters, `iporigin.online` asks the free
+The table covers the VPN providers whose exits are publicly tracked —
+Mullvad, ProtonVPN, Apple Private Relay. Most VPN companies are not in that
+set. When you need broader coverage, `iporigin.online` asks the free
 [Unblock Master IP API](https://www.unblockmaster.com/free-ip-api/), which
 does its own detection:
 
@@ -104,7 +120,10 @@ import this module on purpose. No key required.
 
 ## What is in the dataset
 
-Compiled from these official feeds, all fetched at build time:
+37 providers, in two tiers.
+
+**Published by the provider.** The authoritative tier — each of these is the
+company's own feed, fetched at build time:
 
 | Provider | Feed |
 | --- | --- |
@@ -119,10 +138,27 @@ Compiled from these official feeds, all fetched at build time:
 | Cloudflare | `cloudflare.com/ips-v4`, `ips-v6` |
 | Fastly | `api.fastly.com/public-ip-list` |
 
-About 130,000 published prefixes collapse into 6,445 disjoint ranges
-(3,129 IPv4, 3,316 IPv6) covering roughly 193 million IPv4 addresses.
+**Community-maintained lists.** Some providers publish nothing
+machine-readable — Hetzner and OVH being the two that matter most, since a
+large share of abusive traffic comes from them. Consumer VPN exits, Tor and
+crawler ranges have the same problem for a different reason: nobody with the
+data has an interest in publishing it. Those come from two community repos,
+and are second-hand by definition:
 
-Rebuild it yourself at any time:
+- [`rezmoss/cloud-provider-ip-addresses`](https://github.com/rezmoss/cloud-provider-ip-addresses) (CC0)
+- [`lord-alfred/ipranges`](https://github.com/lord-alfred/ipranges) (CC0)
+
+Covering Hetzner, OVHcloud, Scaleway, Alibaba Cloud, Leaseweb, UpCloud, IBM
+Cloud, Huawei Cloud, Tencent Cloud, Rackspace, Akamai, Gcore, Mullvad,
+ProtonVPN, Apple Private Relay, Tor, and ten declared crawlers.
+
+Both are CC0, which is why these two and not the half-dozen other repos
+covering the same ground. Redistributing an unlicensed list inside an MIT
+package is not something a dependency should ask of the people who install
+it.
+
+About 449,000 published prefixes collapse into 33,647 disjoint ranges
+(17,169 IPv4, 16,478 IPv6). Rebuild it yourself at any time:
 
 ```
 python tools/build_dataset.py
@@ -134,12 +170,13 @@ A GitHub Action re-runs that weekly and opens a PR when the ranges move.
 
 Being explicit about these is more useful than pretending they are not there:
 
-- **Consumer VPNs** are not in any published feed. Use `iporigin.online`.
-- **Hetzner and OVH** — two of the most common hosts behind abusive traffic —
-  publish no machine-readable range feed. Not covered.
+- **Most consumer VPNs.** Only the ones whose exits are publicly tracked are
+  in the table. Use `iporigin.online` for the rest.
 - **Some provider-owned addresses** sit outside the ranges the provider
   publishes. `1.1.1.1` is Cloudflare's resolver but is not in Cloudflare's
   published edge list, so it comes back `unknown`.
+- **Second-hand data is second-hand.** The community tier is as good as
+  those repos are, and they are not the provider speaking.
 - The data is **as accurate as the feeds**. A range reassigned yesterday is
   wrong until the next rebuild.
 

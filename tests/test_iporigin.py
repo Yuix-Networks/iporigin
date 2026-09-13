@@ -127,9 +127,63 @@ def test_ranges_are_sorted_and_non_overlapping():
             previous_end = end
 
 
+KNOWN_KINDS = (core.HOSTING, core.CDN, core.VPN, core.TOR, core.BOT)
+
+
 def test_every_label_is_a_known_kind():
     for _, kind in _data.dataset().labels:
-        assert kind in (core.HOSTING, core.CDN, core.VPN)
+        assert kind in KNOWN_KINDS
+
+
+@pytest.mark.parametrize("kind", KNOWN_KINDS)
+def test_the_dataset_actually_contains_each_kind(kind):
+    """A source silently returning nothing would leave a kind that the API
+    advertises but the data can never produce."""
+    kinds = {k for _, k in _data.dataset().labels}
+    assert kind in kinds, "no provider in the dataset has kind %r" % kind
+
+
+def test_the_gaps_the_readme_used_to_list_are_covered():
+    """Hetzner and OVH have no official feed and were the two documented
+    holes; they are filled from CC0 community lists now."""
+    providers = set(iporigin.dataset_info()["providers"])
+    assert "Hetzner" in providers
+    assert "OVHcloud" in providers
+
+
+def test_anonymizer_kinds_are_a_subset_of_datacenter_kinds():
+    """A VPN or Tor exit is a machine, so anything anonymised is also a
+    datacenter address — the two sets must not disagree."""
+    assert core.ANONYMIZER_KINDS <= core.DATACENTER_KINDS
+
+
+def test_bots_and_tor_count_as_datacenter():
+    assert core.BOT in core.DATACENTER_KINDS
+    assert core.TOR in core.DATACENTER_KINDS
+
+
+def test_a_known_bot_range_is_classified_as_bot():
+    """Sampled from the dataset rather than hardcoded, because crawler
+    ranges move and a pinned address would rot."""
+    data = _data.dataset()
+    for start, label in zip(data.v4_starts, data.v4_labels):
+        if data.labels[label][1] == core.BOT:
+            origin = iporigin.classify(str(ipaddress.ip_address(start)))
+            assert origin.kind == core.BOT
+            assert origin.is_datacenter
+            return
+    pytest.fail("no bot ranges in the dataset")
+
+
+def test_a_known_vpn_range_is_classified_as_vpn():
+    data = _data.dataset()
+    for start, label in zip(data.v4_starts, data.v4_labels):
+        if data.labels[label][1] == core.VPN:
+            origin = iporigin.classify(str(ipaddress.ip_address(start)))
+            assert origin.kind == core.VPN
+            assert origin.kind in core.ANONYMIZER_KINDS
+            return
+    pytest.fail("no vpn ranges in the dataset")
 
 
 def test_a_corrupt_dataset_is_reported_clearly(tmp_path, monkeypatch):

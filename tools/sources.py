@@ -157,3 +157,98 @@ SOURCES = {
     "Cloudflare": ("cdn", cloudflare),
     "Fastly": ("cdn", fastly),
 }
+
+
+# ---------------------------------------------------------------------------
+# Community aggregations
+#
+# Some providers publish no machine-readable range feed at all — Hetzner and
+# OVH are the two that matter most, since a large share of abusive traffic
+# comes from them. Consumer VPN exits and crawler ranges have the same
+# problem for a different reason: nobody has an interest in publishing them.
+#
+# These come from two community repos instead. Both are CC0, which is why
+# these two and not the half-dozen others that cover the same ground:
+# redistributing an unlicensed list inside an MIT package is not something a
+# dependency should ask of the people who install it.
+#
+#   rezmoss/cloud-provider-ip-addresses  CC0-1.0
+#   lord-alfred/ipranges                 CC0-1.0
+#
+# They are second-hand by definition, so they are labelled as such in the
+# README rather than presented as the provider's own word.
+# ---------------------------------------------------------------------------
+
+REZMOSS = "https://raw.githubusercontent.com/rezmoss/cloud-provider-ip-addresses/main/%s/%s_ips_v%d.txt"
+LORD_ALFRED = "https://raw.githubusercontent.com/lord-alfred/ipranges/main/%s/ipv%d_merged.txt"
+
+
+def _plain_cidr_lines(url, required=True):
+    try:
+        text = _get_text(url)
+    except Exception:
+        if required:
+            raise
+        return
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "/" in line:
+            yield line
+
+
+def _rezmoss(slug):
+    def fetch():
+        yield from _plain_cidr_lines(REZMOSS % (slug, slug, 4))
+        # Not every provider has a v6 file with content; a missing one must
+        # not lose the v4 ranges we already collected.
+        yield from _plain_cidr_lines(REZMOSS % (slug, slug, 6), required=False)
+
+    return fetch
+
+
+def _lord_alfred(slug):
+    def fetch():
+        yield from _plain_cidr_lines(LORD_ALFRED % (slug, 4))
+        yield from _plain_cidr_lines(LORD_ALFRED % (slug, 6), required=False)
+
+    return fetch
+
+
+COMMUNITY = {
+    # Hosting with no official feed.
+    "Hetzner": ("hosting", _rezmoss("hetzner")),
+    "OVHcloud": ("hosting", _rezmoss("ovhcloud")),
+    "Scaleway": ("hosting", _rezmoss("scaleway")),
+    "Alibaba Cloud": ("hosting", _rezmoss("alibaba")),
+    "Leaseweb": ("hosting", _rezmoss("leaseweb")),
+    "UpCloud": ("hosting", _rezmoss("upcloud")),
+    "IBM Cloud": ("hosting", _rezmoss("ibmcloud")),
+    "Huawei Cloud": ("hosting", _rezmoss("huawei")),
+    "Tencent Cloud": ("hosting", _rezmoss("tencent")),
+    "Rackspace": ("hosting", _rezmoss("rackspace")),
+    # CDN.
+    "Akamai": ("cdn", _rezmoss("akamai")),
+    "Gcore": ("cdn", _rezmoss("gcore")),
+    # Consumer VPN exits — the thing no provider feed can give us.
+    "Mullvad": ("vpn", _rezmoss("mullvad")),
+    "ProtonVPN": ("vpn", _lord_alfred("protonvpn")),
+    "Apple Private Relay": ("vpn", _rezmoss("apple_private_relay")),
+    # Tor is its own thing: not a VPN, not a datacenter, and a caller
+    # usually wants to treat it differently from both.
+    "Tor": ("tor", _rezmoss("tor")),
+    # Declared crawlers. Separate from hosting because "a bot" and "someone
+    # on a server" call for different handling — you rate-limit one and
+    # block the other.
+    "Googlebot": ("bot", _rezmoss("googlebot")),
+    "Bingbot": ("bot", _rezmoss("bingbot")),
+    "GPTBot": ("bot", _rezmoss("gptbot")),
+    "ClaudeBot": ("bot", _rezmoss("claudebot")),
+    "PerplexityBot": ("bot", _rezmoss("perplexitybot")),
+    "DuckDuckBot": ("bot", _rezmoss("duckduckbot")),
+    "Amazonbot": ("bot", _rezmoss("amazonbot")),
+    "Applebot": ("bot", _rezmoss("applebot")),
+    "Common Crawl": ("bot", _rezmoss("commoncrawl")),
+    "Internet Archive": ("bot", _rezmoss("internetarchive")),
+}
+
+SOURCES.update(COMMUNITY)

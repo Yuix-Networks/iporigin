@@ -9,12 +9,21 @@ from ._data import DatasetError, dataset  # noqa: F401 — re-exported
 # switch on this exhaustively.
 HOSTING = "hosting"      # a machine in a cloud or hosting provider
 CDN = "cdn"              # edge infrastructure fronting other people's sites
-VPN = "vpn"              # a consumer VPN exit node
+VPN = "vpn"              # a consumer VPN or private relay exit
+TOR = "tor"              # a Tor exit node
+BOT = "bot"              # a declared crawler (Googlebot, GPTBot, ...)
 RESERVED = "reserved"    # private, loopback, link-local, documentation...
 UNKNOWN = "unknown"      # in no list we have — most often a residential ISP
 
-#: Kinds that mean "a server, not a person's home connection".
-DATACENTER_KINDS = frozenset({HOSTING, CDN, VPN})
+#: Kinds that mean "this address is a machine, not somebody's home line".
+#: A person browsing through Mullvad is at home, but the address they arrive
+#: from is still a server — this is about the address, not the human.
+DATACENTER_KINDS = frozenset({HOSTING, CDN, VPN, TOR, BOT})
+
+#: Kinds that mean "whoever is behind this is deliberately hidden".
+#: A different decision from DATACENTER_KINDS: you might rate-limit a cloud
+#: IP but refuse a payment from an anonymised one, or the exact reverse.
+ANONYMIZER_KINDS = frozenset({VPN, TOR})
 
 
 @dataclass(frozen=True)

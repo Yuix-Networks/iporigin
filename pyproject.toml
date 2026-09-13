@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "iporigin"
 version = "1.0.0"
-description = "Tell a datacenter IP from a home connection, offline. No API key."
+description = "Is this IP a datacenter, VPN, Tor exit or a home connection? Offline lookup, no API key."
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [{name = "Yuix Networks", email = "info@yuix.org"}]
 keywords = [
     "ip", "geolocation", "datacenter", "hosting", "vpn", "proxy",
-    "cloud", "cidr", "abuse", "fraud", "bot-detection",
+    "cloud", "cidr", "abuse", "fraud", "bot-detection", "tor", "hetzner", "ovh",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
