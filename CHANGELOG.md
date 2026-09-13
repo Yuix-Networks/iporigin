@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.0
+
+- 11 more providers, from two repositories used with their maintainers'
+  permission: Cogent, DataCamp, Contabo, Vercel, CDN77, GleSYS, Scalaxy,
+  GTHost, Melbicom, BuyVM, BunnyCDN, plus extra Akamai ranges.
+  37 providers to 48; 33,647 ranges to 38,379; IPv4 coverage 248M to 287M
+  addresses.
+- NOTICE records every data source, its licence, and — where a repository
+  has none — the permission it is used under.
+- `jhassine/server-ip-addresses` was measured and deliberately left out:
+  every one of 211,616 sampled addresses was already covered, so it adds
+  nothing but another endpoint that can break the weekly rebuild.
+
 ## 1.0.0
 
 First release.

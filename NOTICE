@@ -1,0 +1,78 @@
+Third-party data sources
+========================
+
+iporigin's bundled dataset (src/iporigin/data/ranges.bin) is compiled from
+the sources listed in tools/sources.py. iporigin's own code is MIT; the data
+comes from elsewhere and is recorded here so that anyone redistributing this
+package knows exactly what they are redistributing.
+
+
+1. Published by the provider
+----------------------------
+
+Amazon AWS, Google, Google Cloud, Microsoft Azure, DigitalOcean, Linode,
+Vultr, Oracle Cloud, GitHub, Cloudflare, Fastly.
+
+Each is the operator's own published feed, issued for the purpose of being
+consumed programmatically. No separate permission is needed or claimed.
+
+
+2. CC0-1.0 community aggregations
+---------------------------------
+
+  rezmoss/cloud-provider-ip-addresses   CC0-1.0
+  https://github.com/rezmoss/cloud-provider-ip-addresses
+
+  lord-alfred/ipranges                  CC0-1.0
+  https://github.com/lord-alfred/ipranges
+
+CC0 is a public-domain dedication, so these carry no conditions.
+
+
+3. Used with the maintainer's permission
+----------------------------------------
+
+These repositories publish no licence file. Under default copyright that
+means all rights reserved, and they would otherwise be unusable here.
+They are included because permission was obtained from each maintainer
+directly, by Serdar Akarca of Yuix Networks, prior to the 1.1.0 release
+(2026-09-13). The maintainers' position as relayed was that the lists were
+published for general use.
+
+  123jjck/cdn-ip-ranges
+  https://github.com/123jjck/cdn-ip-ranges
+  Used for: Cogent, DataCamp, Contabo, Vercel, CDN77, GleSYS, Scalaxy,
+            GTHost, Melbicom, BuyVM, BunnyCDN
+
+  SecOps-Institute/Akamai-ASN-and-IPs-List
+  https://github.com/SecOps-Institute/Akamai-ASN-and-IPs-List
+  Used for: additional Akamai ranges
+
+TODO for the maintainer: attach the written record of each permission below
+(issue link, PR link or email date). Until that is here, the grant rests on
+a verbal account, which is thinner than a licence and worth replacing. The
+cleanest fix is a PR to each repository adding a licence file — that removes
+the question for everyone downstream, not just for us.
+
+  123jjck/cdn-ip-ranges                     evidence: <to be added>
+  SecOps-Institute/Akamai-ASN-and-IPs-List  evidence: <to be added>
+
+
+Sources deliberately excluded
+-----------------------------
+
+Measured and left out because they add nothing, not for licensing reasons:
+
+  jhassine/server-ip-addresses
+    52,772 prefixes covering 227M addresses. Every one of 211,616 sampled
+    addresses was already covered by the tiers above — it is a subset of
+    the provider feeds it was itself built from.
+
+  Pymmdrza/Datacenter_List_DataBase_IP
+    1,280 new addresses beyond Hetzner's other sources.
+
+  SM443/IP-Prefix-List
+    No parseable CIDR content at the referenced paths.
+
+A source that adds nothing still costs something: another endpoint that can
+break the weekly rebuild.

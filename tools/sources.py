@@ -252,3 +252,70 @@ COMMUNITY = {
 }
 
 SOURCES.update(COMMUNITY)
+
+
+# ---------------------------------------------------------------------------
+# Sources used with the upstream maintainers' permission
+#
+# These repositories carry no licence file, which normally means "all rights
+# reserved" and rules them out of an MIT package. They are included because
+# permission was obtained from each maintainer directly — see NOTICE.
+#
+# Only what is actually additive is taken. Two well-known lists were measured
+# and left out rather than included for the sake of it:
+#
+#   jhassine/server-ip-addresses  52,772 prefixes, 227M addresses, and every
+#                                 one of 211,616 sampled addresses already
+#                                 covered — it is a subset of the provider
+#                                 feeds it was itself built from.
+#   Pymmdrza/Datacenter_List...   1,280 new addresses over what Hetzner's
+#                                 other sources already give.
+#
+# A source that adds nothing is not free: it is another endpoint that can
+# break the weekly rebuild.
+# ---------------------------------------------------------------------------
+
+JJCK = "https://raw.githubusercontent.com/123jjck/cdn-ip-ranges/main/%s/%s_plain_ipv4.txt"
+
+
+def _jjck(slug):
+    # IPv4 only; this repo publishes no v6 files.
+    return lambda: _plain_cidr_lines(JJCK % (slug, slug))
+
+
+def akamai_secops():
+    yield from _plain_cidr_lines(
+        "https://raw.githubusercontent.com/SecOps-Institute/"
+        "Akamai-ASN-and-IPs-List/master/akamai_ip_cidr_blocks.lst"
+    )
+
+
+BY_PERMISSION = {
+    # Networks with no feed anywhere else. Measured additions over the
+    # CC0 tier, largest first.
+    "Cogent": ("hosting", _jjck("cogent")),          # +36.2M addresses
+    "DataCamp": ("cdn", _jjck("datacamp")),          # +1.07M
+    "Contabo": ("hosting", _jjck("contabo")),        # +603k
+    "Vercel": ("hosting", _jjck("vercel")),          # +134k
+    "CDN77": ("cdn", _jjck("cdn77")),                # +128k
+    "GleSYS": ("hosting", _jjck("glesys")),          # +158k
+    "Scalaxy": ("hosting", _jjck("scalaxy")),        # +105k
+    "GTHost": ("hosting", _jjck("gthost")),          # +89k
+    "Melbicom": ("hosting", _jjck("melbicom")),      # +63k
+    "BuyVM": ("hosting", _jjck("buyvm")),            # +32k
+    "BunnyCDN": ("cdn", _jjck("bunny")),             # +4k
+}
+
+# Akamai already has a CC0 source; this one adds ~309k addresses on top, so
+# it feeds the same label rather than creating a second Akamai entry.
+_akamai_cc0 = COMMUNITY["Akamai"][1]
+
+
+def akamai_combined():
+    yield from _akamai_cc0()
+    yield from akamai_secops()
+
+
+COMMUNITY["Akamai"] = ("cdn", akamai_combined)
+
+SOURCES.update(BY_PERMISSION)

@@ -13,7 +13,7 @@ False
 ```
 
 No network calls. No signup. No runtime dependencies. The answer comes from
-a bundled table of 33,000 ranges covering 37 hosting providers, CDNs,
+a bundled table of 38,000 ranges covering 48 hosting providers, CDNs,
 consumer VPNs, Tor and declared crawlers.
 
 ## Install
@@ -120,7 +120,7 @@ import this module on purpose. No key required.
 
 ## What is in the dataset
 
-37 providers, in two tiers.
+48 providers, in three tiers.
 
 **Published by the provider.** The authoritative tier — each of these is the
 company's own feed, fetched at build time:
@@ -152,13 +152,29 @@ Covering Hetzner, OVHcloud, Scaleway, Alibaba Cloud, Leaseweb, UpCloud, IBM
 Cloud, Huawei Cloud, Tencent Cloud, Rackspace, Akamai, Gcore, Mullvad,
 ProtonVPN, Apple Private Relay, Tor, and ten declared crawlers.
 
-Both are CC0, which is why these two and not the half-dozen other repos
-covering the same ground. Redistributing an unlicensed list inside an MIT
-package is not something a dependency should ask of the people who install
-it.
+Both are CC0, a public-domain dedication, so they carry no conditions.
 
-About 449,000 published prefixes collapse into 33,647 disjoint ranges
-(17,169 IPv4, 16,478 IPv6). Rebuild it yourself at any time:
+**Used with the maintainer's permission.** Two further repositories publish
+no licence file, which normally rules them out. They are included because
+permission was obtained from each maintainer directly — see
+[NOTICE](NOTICE), which records what was granted and by whom:
+
+- [`123jjck/cdn-ip-ranges`](https://github.com/123jjck/cdn-ip-ranges) —
+  Cogent, DataCamp, Contabo, Vercel, CDN77, GleSYS, Scalaxy, GTHost,
+  Melbicom, BuyVM, BunnyCDN
+- [`SecOps-Institute/Akamai-ASN-and-IPs-List`](https://github.com/SecOps-Institute/Akamai-ASN-and-IPs-List) —
+  additional Akamai ranges
+
+Only what is additive is taken. `jhassine/server-ip-addresses` is the
+best-known list of this kind and is **not** included: 52,772 prefixes,
+227M addresses, and every one of 211,616 sampled addresses was already
+covered. It is a subset of the provider feeds it was itself built from, and
+a source that adds nothing is still another endpoint that can break the
+weekly rebuild.
+
+About 454,000 published prefixes collapse into 38,379 disjoint ranges
+(21,901 IPv4, 16,478 IPv6) covering 287 million IPv4 addresses. Rebuild it
+yourself at any time:
 
 ```
 python tools/build_dataset.py
@@ -175,8 +191,8 @@ Being explicit about these is more useful than pretending they are not there:
 - **Some provider-owned addresses** sit outside the ranges the provider
   publishes. `1.1.1.1` is Cloudflare's resolver but is not in Cloudflare's
   published edge list, so it comes back `unknown`.
-- **Second-hand data is second-hand.** The community tier is as good as
-  those repos are, and they are not the provider speaking.
+- **Second-hand data is second-hand.** Tiers 2 and 3 are as good as those
+  repos are, and they are not the provider speaking.
 - The data is **as accurate as the feeds**. A range reassigned yesterday is
   wrong until the next rebuild.
 
@@ -203,8 +219,9 @@ Python 3.8+. No dependencies.
 
 ## License
 
-MIT. The compiled dataset is derived from the providers' own public feeds,
-each published for exactly this purpose.
+The code is MIT. The bundled dataset comes from third parties; every source,
+its licence, and — where there is none — the permission it is used under are
+recorded in [NOTICE](NOTICE).
 
 ---
 
