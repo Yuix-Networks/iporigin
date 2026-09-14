@@ -1,0 +1,149 @@
+name: Release
+
+# The weekly refresh lands new provider ranges on main, but nothing reaches
+# anyone running `pip install iporigin` until a version goes out. Once a
+# month, if the dataset actually moved since the last release, cut a patch.
+#
+# "If it moved" is the whole point: a month where every provider stood still
+# produces no release rather than a version whose only content is a new
+# number.
+on:
+  schedule:
+    # The 6th, so the month's first Monday refresh is always already in.
+    - cron: "0 6 6 * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Release even if the dataset did not change"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write      # version bump commit, tag, GitHub release
+  id-token: write      # PyPI trusted publishing
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: pypi
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # the tags are how we know what was last released
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Has the dataset moved since the last release?
+        id: check
+        run: |
+          last=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          if [ -z "$last" ]; then
+            echo "No release tag yet; treating this as the first release."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "last=$last" >> "$GITHUB_OUTPUT"
+
+          if git diff --quiet "$last" HEAD -- src/iporigin/data/ranges.bin; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Dataset is byte-identical to $last." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Dataset differs from $last." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Nothing to release
+        if: steps.check.outputs.changed != 'true' && inputs.force != true
+        run: |
+          echo "Skipping: no dataset change since ${{ steps.check.outputs.last }}."
+
+      - name: Bump the patch version
+        id: bump
+        if: steps.check.outputs.changed == 'true' || inputs.force == true
+        run: echo "version=$(python tools/bump_version.py)" >> "$GITHUB_OUTPUT"
+
+      - name: Test against the bumped tree
+        if: steps.bump.outcome == 'success'
+        run: |
+          pip install -e ".[dev]"
+          pytest -q
+
+      - name: Build
+        if: steps.bump.outcome == 'success'
+        run: |
+          pip install build twine
+          python -m build
+          twine check dist/*
+
+      - name: The wheel must contain the dataset
+        # A wheel without ranges.bin installs cleanly and then fails on the
+        # first lookup. Nobody reviews this release, so check before it ships.
+        if: steps.bump.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import glob, zipfile, sys
+          wheel = glob.glob("dist/*.whl")[0]
+          names = zipfile.ZipFile(wheel).namelist()
+          if not any(n.endswith("iporigin/data/ranges.bin") for n in names):
+              sys.exit("ranges.bin is missing from %s" % wheel)
+          print("ok:", wheel)
+          PY
+
+      - name: Describe the dataset being shipped
+        # A release whose only content is data should say what the data is;
+        # "38,385 ranges" is the difference between a changelog and a number.
+        if: steps.bump.outcome == 'success'
+        run: |
+          python - >> "$GITHUB_ENV" <<'PY'
+          import datetime, iporigin
+          info = iporigin.dataset_info()
+          built = datetime.datetime.fromtimestamp(
+              info["built_at"], datetime.timezone.utc).date()
+          print("DATASET_SUMMARY=%s ranges (%s IPv4, %s IPv6) across %d "
+                "providers, built %s." % (
+                    format(info["ranges"], ","),
+                    format(info["ipv4_ranges"], ","),
+                    format(info["ipv6_ranges"], ","),
+                    len(info["providers"]),
+                    built,
+                ))
+          PY
+
+      # Publishing is the irreversible step: a version number on PyPI can be
+      # yanked but never reused. Everything that could fail has failed by now.
+      - name: Publish to PyPI
+        if: steps.bump.outcome == 'success'
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Record the release in git
+        if: steps.bump.outcome == 'success'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml src/iporigin/__init__.py
+          git commit -m "release: $VERSION
+
+          Monthly release carrying the provider ranges refreshed since
+          ${{ steps.check.outputs.last }}. $DATASET_SUMMARY"
+          git tag -a "v$VERSION" -m "iporigin $VERSION"
+          git push origin HEAD:main "refs/tags/v$VERSION"
+
+      - name: GitHub release
+        if: steps.bump.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/* \
+            --title "iporigin $VERSION" \
+            --notes "Monthly data release: the bundled provider ranges rebuilt from the feeds in \`tools/sources.py\`. $DATASET_SUMMARY
+
+          No code changes. [Commits since ${{ steps.check.outputs.last }}](https://github.com/${{ github.repository }}/compare/${{ steps.check.outputs.last }}...v$VERSION)."

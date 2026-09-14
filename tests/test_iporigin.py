@@ -436,3 +436,75 @@ def test_existing_range_count_survives_a_missing_or_corrupt_file(tmp_path, monke
     corrupt.write_bytes(b"nope")
     monkeypatch.setattr(build, "OUT", corrupt)
     assert build.existing_range_count() is None
+
+
+# --- the release bump ------------------------------------------------------
+#
+# Releases are cut by a scheduled job, so a bump that goes half-way lands on
+# PyPI before anyone looks at it.
+
+
+def _bump_module():
+    import importlib.util
+    import pathlib
+
+    path = pathlib.Path(__file__).parent.parent / "tools" / "bump_version.py"
+    spec = importlib.util.spec_from_file_location("bump_version", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_the_two_declared_versions_agree():
+    """pyproject.toml and __init__.py each hold the version separately."""
+    bump = _bump_module()
+    declared, exported = bump.read_versions(
+        bump.PYPROJECT.read_text(), bump.INIT.read_text()
+    )
+    assert declared == exported == iporigin.__version__
+
+
+def test_patch_bump():
+    bump = _bump_module()
+    assert bump.next_patch("1.1.0") == "1.1.1"
+    assert bump.next_patch("1.1.9") == "1.1.10"
+    assert bump.next_patch("0.0.0") == "0.0.1"
+
+
+def test_a_non_numeric_version_is_left_alone():
+    bump = _bump_module()
+    for bad in ("2.0.0rc1", "1.1", "1.1.0.post1", "v1.1.0"):
+        with pytest.raises(ValueError):
+            bump.next_patch(bad)
+
+
+def test_bump_rewrites_both_files():
+    bump = _bump_module()
+    pyproject, init, new = bump.bump(
+        'name = "iporigin"\nversion = "1.2.3"\n', '__version__ = "1.2.3"\n'
+    )
+    assert new == "1.2.4"
+    assert 'version = "1.2.4"' in pyproject
+    assert '__version__ = "1.2.4"' in init
+
+
+def test_bump_refuses_when_the_files_disagree():
+    bump = _bump_module()
+    with pytest.raises(ValueError, match="fix that before releasing"):
+        bump.bump('version = "1.2.3"\n', '__version__ = "1.0.0"\n')
+
+
+def test_bump_refuses_when_a_declaration_is_missing():
+    bump = _bump_module()
+    with pytest.raises(ValueError, match="pyproject"):
+        bump.read_versions("name = \"iporigin\"\n", '__version__ = "1.0.0"\n')
+    with pytest.raises(ValueError, match="__init__"):
+        bump.read_versions('version = "1.0.0"\n', "x = 1\n")
+
+
+def test_bump_only_touches_the_version_line():
+    """pyproject holds other quoted values; a greedy substitution eats them."""
+    bump = _bump_module()
+    source = 'version = "1.2.3"\nrequires-python = ">=3.8"\n'
+    pyproject, _init, _new = bump.bump(source, '__version__ = "1.2.3"\n')
+    assert 'requires-python = ">=3.8"' in pyproject

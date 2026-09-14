@@ -182,7 +182,11 @@ python tools/build_dataset.py
 ```
 
 A GitHub Action re-runs that weekly and commits the result when the ranges
-move. The build refuses to replace the committed dataset if it shrinks by
+move, and a second one cuts a patch release on the 6th of each month if the
+dataset changed since the last release — so `pip install --upgrade iporigin`
+is never more than about a month behind the feeds, and a quiet month
+produces no release rather than a version whose only content is a new
+number. The build refuses to replace the committed dataset if it shrinks by
 more than 20% — a feed that starts answering with an empty body looks
 exactly like a provider giving up its address space, and nothing else
 would catch it. Pass `--allow-shrink` when the drop is genuine.
