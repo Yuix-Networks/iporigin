@@ -363,3 +363,76 @@ def _stub_api(monkeypatch, payload):
         yield Response()
 
     monkeypatch.setattr(online.urllib.request, "urlopen", fake_urlopen)
+
+
+# --- the build guard -------------------------------------------------------
+#
+# The weekly refresh commits straight to main, so this check is the only
+# thing standing between a broken upstream feed and a shipped dataset.
+
+
+def _build_module():
+    import importlib.util
+    import pathlib
+
+    path = pathlib.Path(__file__).parent.parent / "tools" / "build_dataset.py"
+    spec = importlib.util.spec_from_file_location("build_dataset", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_a_large_shrink_is_refused():
+    build = _build_module()
+    assert build.shrink_complaint(30000, 5000) is not None
+
+
+def test_a_normal_week_is_allowed():
+    """Feeds move by a few percent all the time."""
+    build = _build_module()
+    assert build.shrink_complaint(30000, 29000) is None
+    assert build.shrink_complaint(30000, 31500) is None
+
+
+def test_growth_is_never_refused():
+    build = _build_module()
+    assert build.shrink_complaint(1000, 100000) is None
+
+
+def test_the_first_ever_build_is_allowed():
+    """No committed dataset to compare against."""
+    build = _build_module()
+    assert build.shrink_complaint(None, 10) is None
+    assert build.shrink_complaint(0, 10) is None
+
+
+def test_the_threshold_is_the_documented_one():
+    build = _build_module()
+    assert build.MAX_SHRINK == 0.20
+    # Exactly at the limit passes; a hair below does not.
+    assert build.shrink_complaint(1000, 800) is None
+    assert build.shrink_complaint(1000, 799) is not None
+
+
+def test_the_complaint_says_what_to_do():
+    build = _build_module()
+    message = build.shrink_complaint(30000, 5000)
+    assert "--allow-shrink" in message
+    assert "5000" in message and "30000" in message
+
+
+def test_existing_range_count_reads_the_committed_dataset():
+    build = _build_module()
+    count = build.existing_range_count()
+    assert count and count > 1000
+
+
+def test_existing_range_count_survives_a_missing_or_corrupt_file(tmp_path, monkeypatch):
+    build = _build_module()
+    monkeypatch.setattr(build, "OUT", tmp_path / "absent.bin")
+    assert build.existing_range_count() is None
+
+    corrupt = tmp_path / "ranges.bin"
+    corrupt.write_bytes(b"nope")
+    monkeypatch.setattr(build, "OUT", corrupt)
+    assert build.existing_range_count() is None

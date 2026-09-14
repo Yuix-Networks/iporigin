@@ -180,7 +180,11 @@ yourself at any time:
 python tools/build_dataset.py
 ```
 
-A GitHub Action re-runs that weekly and opens a PR when the ranges move.
+A GitHub Action re-runs that weekly and commits the result when the ranges
+move. The build refuses to replace the committed dataset if it shrinks by
+more than 20% — a feed that starts answering with an empty body looks
+exactly like a provider giving up its address space, and nothing else
+would catch it. Pass `--allow-shrink` when the drop is genuine.
 
 ### Known gaps
 

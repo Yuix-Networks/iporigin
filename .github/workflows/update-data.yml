@@ -1,8 +1,14 @@
 name: Refresh dataset
 
-# The provider feeds move constantly. Rebuild weekly and open a PR when the
-# result differs, so a data change is reviewed like any other change rather
-# than landing silently on main.
+# The provider feeds move constantly. Rebuild weekly and commit the result
+# straight to main when it differs.
+#
+# There is no review step, so two things stand in for one: build_dataset.py
+# refuses to write a dataset that shrank by more than MAX_SHRINK, and the
+# test suite has to pass against the rebuilt data before anything is
+# committed. Everything the fetch had to say — per-source prefix counts,
+# feeds that were skipped — goes into the commit body and the run summary,
+# because a binary diff tells a reader nothing.
 on:
   schedule:
     - cron: "17 4 * * 1"
@@ -10,7 +16,11 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
+
+# Never let a manual run and the weekly one both push to main.
+concurrency:
+  group: refresh-dataset
+  cancel-in-progress: false
 
 jobs:
   refresh:
@@ -22,24 +32,53 @@ jobs:
           python-version: "3.12"
 
       - name: Rebuild
-        run: python tools/build_dataset.py
+        # Both streams: the per-source counts go to stdout, a feed that
+        # failed goes to stderr, and the commit body wants both.
+        run: python tools/build_dataset.py 2>&1 | tee /tmp/build.log
 
       - name: Verify the rebuilt dataset still works
         run: |
           pip install -e ".[dev]"
           pytest -q
 
-      - uses: peter-evans/create-pull-request@v8
-        with:
-          commit-message: "data: refresh provider ranges"
-          branch: data/refresh
-          delete-branch: true
-          title: "Refresh provider IP ranges"
-          body: |
-            Weekly rebuild of `src/iporigin/data/ranges.bin` from the
-            upstream provider feeds listed in `tools/sources.py`.
+      - name: Commit
+        run: |
+          if git diff --quiet -- src/iporigin/data/ranges.bin; then
+            echo "Feeds produced the same dataset; nothing to commit."
+            echo "No change this week." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
-            The test suite passed against the rebuilt data. Check the
-            reported range counts below for anything that looks like a feed
-            having a bad day — a provider dropping to zero prefixes means
-            its endpoint changed, not that it gave up its address space.
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/iporigin/data/ranges.bin
+
+          {
+            echo "data: refresh provider ranges"
+            echo
+            echo "Weekly rebuild from the feeds listed in tools/sources.py. The"
+            echo "test suite passed against this data and it is within MAX_SHRINK"
+            echo "of the dataset it replaces."
+            echo
+            cat /tmp/build.log
+          } > /tmp/commit-message
+
+          git commit -F /tmp/commit-message
+          git push
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo '## Build log'
+            echo '```'
+            cat /tmp/build.log 2>/dev/null || echo '(the build did not get far enough to log anything)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # A feed that 404s or changes shape is not fatal on its own — the
+          # others carry the dataset — but it is how a source rots, and with
+          # no reviewer this annotation is the only place anyone would see it.
+          while IFS= read -r line; do
+            echo "::warning::${line#  !! }"
+          done < <(grep '^  !! ' /tmp/build.log 2>/dev/null || true)

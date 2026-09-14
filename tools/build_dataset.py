@@ -155,7 +155,48 @@ def pack(v4, v6):
     return bytes(out)
 
 
-def main():
+#: Refuse to replace the dataset if it shrinks by more than this. A source
+#: that starts answering 200 with an empty body, or quietly changes its JSON
+#: shape, looks exactly like a provider giving up its address space — and
+#: nothing else in the pipeline would notice.
+MAX_SHRINK = 0.20
+
+
+def existing_range_count():
+    """How many ranges the committed dataset holds, or None if there is none."""
+    if not OUT.exists():
+        return None
+    try:
+        blob = OUT.read_bytes()
+        magic, _version, _built, _labels, n_v4, n_v6 = struct.unpack_from("<8sHQHII", blob, 0)
+    except Exception:
+        return None
+    if magic != MAGIC:
+        return None
+    return n_v4 + n_v6
+
+
+def shrink_complaint(previous, current, max_shrink=None):
+    """Why this build must not replace the committed one, or None.
+
+    A source that starts answering 200 with an empty body, or quietly
+    changes its JSON shape, looks exactly like a provider giving up its
+    address space. Nothing else in the pipeline notices, and since the
+    refresh now commits straight to main there is no review that would.
+    """
+    limit = MAX_SHRINK if max_shrink is None else max_shrink
+    if not previous or current >= previous * (1 - limit):
+        return None
+    return (
+        "Refusing to write: %d ranges is %.0f%% below the %d already "
+        "committed. Either several sources failed at once, or one changed "
+        "shape and is now parsing to nothing. Check the per-source counts "
+        "above, then override with --allow-shrink if it is genuine."
+        % (current, 100 * (1 - current / previous), previous)
+    )
+
+
+def main(allow_shrink=False):
     print("Fetching provider feeds...")
     v4, v6 = collect()
     if not v4:
@@ -169,6 +210,14 @@ def main():
     v4, v6 = flatten(v4), flatten(v6)
     blob = pack(v4, v6)
 
+    # The last line of defence now that nothing downstream reviews this.
+    complaint = None if allow_shrink else shrink_complaint(
+        existing_range_count(), len(v4) + len(v6)
+    )
+    if complaint:
+        print(complaint, file=sys.stderr)
+        return 1
+
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_bytes(blob)
 
@@ -179,4 +228,4 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(allow_shrink="--allow-shrink" in sys.argv))
