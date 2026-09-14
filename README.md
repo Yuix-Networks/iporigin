@@ -172,9 +172,10 @@ covered. It is a subset of the provider feeds it was itself built from, and
 a source that adds nothing is still another endpoint that can break the
 weekly rebuild.
 
-About 454,000 published prefixes collapse into 38,379 disjoint ranges
-(21,901 IPv4, 16,478 IPv6) covering 287 million IPv4 addresses. Rebuild it
-yourself at any time:
+About 454,000 published prefixes collapse into roughly 38,400 disjoint
+ranges (about 21,900 IPv4 and 16,500 IPv6) covering 287 million IPv4
+addresses. The exact figures move every week with the feeds; the build
+prints them. Rebuild it yourself at any time:
 
 ```
 python tools/build_dataset.py
