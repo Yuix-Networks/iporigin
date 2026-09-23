@@ -206,6 +206,30 @@ def test_known_ai_bot_provider_is_classified_as_bot(provider):
     pytest.skip("provider %r has no ranges in this build" % provider)
 
 
+_AI_BOT_PROVIDERS = [
+    "OpenAI",
+    "Perplexity AI",
+    "DuckAssistBot",
+    "Apple Intelligence Proxy",
+    "Meta",
+]
+
+
+def test_at_least_one_ai_bot_provider_contributes_ranges():
+    """Catches a future regression where every new AI-bot slug turns
+    out to be a strict subset of an existing bot label — the
+    parametrized test above would quietly skip every case. At least
+    one of the probed providers must add distinct segments.
+    """
+    data = _data.dataset()
+    bot_providers = {p for p, _ in data.labels if p in _AI_BOT_PROVIDERS}
+    assert bot_providers, (
+        "no AI-company bot provider contributed distinct ranges "
+        "to this build — every probed slug was absorbed into an "
+        "existing label"
+    )
+
+
 def test_a_known_vpn_range_is_classified_as_vpn():
     data = _data.dataset()
     for start, label in zip(data.v4_starts, data.v4_labels):
