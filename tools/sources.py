@@ -214,6 +214,39 @@ def _lord_alfred(slug):
     return fetch
 
 
+def _optional_rezmoss(slug):
+    """Like _rezmoss, but a missing upstream file is logged and skipped,
+    not raised. Use for community slugs whose availability is not certain."""
+    def fetch():
+        url = REZMOSS % (slug, slug, 4)
+        try:
+            text = _get_text(url)
+        except Exception as exc:
+            print("  !! %-18s skipped: %s" % (slug, exc), file=__import__("sys").stderr)
+            return
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "/" in line:
+                yield line
+    return fetch
+
+
+def _optional_lord_alfred(slug):
+    """Like _lord_alfred, but a missing upstream file is logged and skipped."""
+    def fetch():
+        url = LORD_ALFRED % (slug, 4)
+        try:
+            text = _get_text(url)
+        except Exception as exc:
+            print("  !! %-18s skipped: %s" % (slug, exc), file=__import__("sys").stderr)
+            return
+        for line in text.splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "/" in line:
+                yield line
+    return fetch
+
+
 COMMUNITY = {
     # Hosting with no official feed.
     "Hetzner": ("hosting", _rezmoss("hetzner")),
@@ -249,6 +282,11 @@ COMMUNITY = {
     "Applebot": ("bot", _rezmoss("applebot")),
     "Common Crawl": ("bot", _rezmoss("commoncrawl")),
     "Internet Archive": ("bot", _rezmoss("internetarchive")),
+    "OpenAI": ("bot", _optional_lord_alfred("openai")),
+    "Perplexity AI": ("bot", _optional_lord_alfred("perplexity")),
+    "DuckAssistBot": ("bot", _optional_lord_alfred("duckassistbot")),
+    "Apple Intelligence Proxy": ("bot", _optional_lord_alfred("apple-proxy")),
+    "Meta": ("bot", _optional_rezmoss("meta")),
 }
 
 SOURCES.update(COMMUNITY)
