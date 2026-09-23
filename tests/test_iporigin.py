@@ -175,6 +175,37 @@ def test_a_known_bot_range_is_classified_as_bot():
     pytest.fail("no bot ranges in the dataset")
 
 
+@pytest.mark.parametrize(
+    "provider",
+    [
+        # Updated whenever a new bot provider is added in tools/sources.py.
+        # Slugs that returned 404 upstream are omitted from the dataset
+        # and skipped here. Slugs whose ranges overlap exactly with an
+        # existing bot label are also skipped (they add label diversity
+        # without contributing distinct segments to the disjoint sweep).
+        "OpenAI",
+        "Perplexity AI",
+        "DuckAssistBot",
+        "Apple Intelligence Proxy",
+        "Meta",
+    ],
+)
+def test_known_ai_bot_provider_is_classified_as_bot(provider):
+    """One sample per AI-company bot provider, taken from the dataset.
+
+    Sampled rather than hardcoded because ranges move with the feeds.
+    """
+    data = _data.dataset()
+    for start, label_idx in zip(data.v4_starts, data.v4_labels):
+        if data.labels[label_idx][0] == provider:
+            origin = iporigin.classify(str(ipaddress.ip_address(start)))
+            assert origin.kind == core.BOT
+            assert origin.provider == provider
+            assert origin.is_datacenter
+            return
+    pytest.skip("provider %r has no ranges in this build" % provider)
+
+
 def test_a_known_vpn_range_is_classified_as_vpn():
     data = _data.dataset()
     for start, label in zip(data.v4_starts, data.v4_labels):
