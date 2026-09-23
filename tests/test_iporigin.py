@@ -175,6 +175,61 @@ def test_a_known_bot_range_is_classified_as_bot():
     pytest.fail("no bot ranges in the dataset")
 
 
+@pytest.mark.parametrize(
+    "provider",
+    [
+        # Updated whenever a new bot provider is added in tools/sources.py.
+        # Slugs that returned 404 upstream are omitted from the dataset
+        # and skipped here. Slugs whose ranges overlap exactly with an
+        # existing bot label are also skipped (they add label diversity
+        # without contributing distinct segments to the disjoint sweep).
+        "OpenAI",
+        "Perplexity AI",
+        "DuckAssistBot",
+        "Apple Intelligence Proxy",
+        "Meta",
+    ],
+)
+def test_known_ai_bot_provider_is_classified_as_bot(provider):
+    """One sample per AI-company bot provider, taken from the dataset.
+
+    Sampled rather than hardcoded because ranges move with the feeds.
+    """
+    data = _data.dataset()
+    for start, label_idx in zip(data.v4_starts, data.v4_labels):
+        if data.labels[label_idx][0] == provider:
+            origin = iporigin.classify(str(ipaddress.ip_address(start)))
+            assert origin.kind == core.BOT
+            assert origin.provider == provider
+            assert origin.is_datacenter
+            return
+    pytest.skip("provider %r has no ranges in this build" % provider)
+
+
+_AI_BOT_PROVIDERS = [
+    "OpenAI",
+    "Perplexity AI",
+    "DuckAssistBot",
+    "Apple Intelligence Proxy",
+    "Meta",
+]
+
+
+def test_at_least_one_ai_bot_provider_contributes_ranges():
+    """Catches a future regression where every new AI-bot slug turns
+    out to be a strict subset of an existing bot label — the
+    parametrized test above would quietly skip every case. At least
+    one of the probed providers must add distinct segments.
+    """
+    data = _data.dataset()
+    bot_providers = {p for p, _ in data.labels if p in _AI_BOT_PROVIDERS}
+    assert bot_providers, (
+        "no AI-company bot provider contributed distinct ranges "
+        "to this build — every probed slug was absorbed into an "
+        "existing label"
+    )
+
+
 def test_a_known_vpn_range_is_classified_as_vpn():
     data = _data.dataset()
     for start, label in zip(data.v4_starts, data.v4_labels):

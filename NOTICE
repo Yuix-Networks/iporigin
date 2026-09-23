@@ -28,6 +28,14 @@ consumed programmatically. No separate permission is needed or claimed.
 
 CC0 is a public-domain dedication, so these carry no conditions.
 
+The AI-company bot slugs probed for outbound crawler coverage
+(OpenAI, Perplexity AI, DuckAssistBot, Apple Intelligence Proxy,
+Meta) come from these same two repositories. The set above is
+what was probed; only Meta adds ranges the disjoint sweep does not
+collapse into an existing bot or vpn label, and the rest overlap
+exactly with GPTBot / PerplexityBot / DuckDuckBot / Apple Private
+Relay and answer under those provider names.
+
 
 3. Used with the maintainer's permission
 ----------------------------------------

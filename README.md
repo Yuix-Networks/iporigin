@@ -56,7 +56,7 @@ origin.is_datacenter # True
 | `cdn` | edge infrastructure fronting other people's sites | Cloudflare, Akamai |
 | `vpn` | a consumer VPN or private relay exit | Mullvad, ProtonVPN, Apple Private Relay |
 | `tor` | a Tor exit node | |
-| `bot` | a declared crawler | Googlebot, GPTBot, ClaudeBot |
+| `bot` | a declared crawler or an AI company's outbound IP | Googlebot, GPTBot, GPTBot (OpenAI's crawler), Meta, ... |
 | `reserved` | private, loopback, link-local, documentation | `127.0.0.1`, `10.0.0.0/8` |
 | `unknown` | in none of our lists — most often a residential ISP | |
 
@@ -150,7 +150,11 @@ and are second-hand by definition:
 
 Covering Hetzner, OVHcloud, Scaleway, Alibaba Cloud, Leaseweb, UpCloud, IBM
 Cloud, Huawei Cloud, Tencent Cloud, Rackspace, Akamai, Gcore, Mullvad,
-ProtonVPN, Apple Private Relay, Tor, and ten declared crawlers.
+ProtonVPN, Apple Private Relay, Tor, and ten declared crawlers. AI-company
+outbound ranges (OpenAI, Perplexity AI, DuckAssistBot, Apple Intelligence
+Proxy, Meta) come from these same two repositories. Most of them overlap
+exactly with an existing bot label, so they contribute label diversity
+rather than new bot coverage — only Meta adds distinct segments.
 
 Both are CC0, a public-domain dedication, so they carry no conditions.
 
