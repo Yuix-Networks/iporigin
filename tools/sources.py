@@ -14,6 +14,7 @@ import csv
 import io
 import json
 import re
+import sys
 import urllib.request
 
 USER_AGENT = "iporigin-dataset-builder/1.0 (+https://github.com/Yuix-Networks/iporigin)"
@@ -218,32 +219,34 @@ def _optional_rezmoss(slug):
     """Like _rezmoss, but a missing upstream file is logged and skipped,
     not raised. Use for community slugs whose availability is not certain."""
     def fetch():
-        url = REZMOSS % (slug, slug, 4)
-        try:
-            text = _get_text(url)
-        except Exception as exc:
-            print("  !! %-18s skipped: %s" % (slug, exc), file=__import__("sys").stderr)
-            return
-        for line in text.splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "/" in line:
-                yield line
+        for version in (4, 6):
+            url = REZMOSS % (slug, slug, version)
+            try:
+                text = _get_text(url)
+            except Exception as exc:
+                print("  !! %-18s skipped: %s" % (slug, exc), file=sys.stderr)
+                continue
+            for line in text.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "/" in line:
+                    yield line
     return fetch
 
 
 def _optional_lord_alfred(slug):
     """Like _lord_alfred, but a missing upstream file is logged and skipped."""
     def fetch():
-        url = LORD_ALFRED % (slug, 4)
-        try:
-            text = _get_text(url)
-        except Exception as exc:
-            print("  !! %-18s skipped: %s" % (slug, exc), file=__import__("sys").stderr)
-            return
-        for line in text.splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "/" in line:
-                yield line
+        for version in (4, 6):
+            url = LORD_ALFRED % (slug, version)
+            try:
+                text = _get_text(url)
+            except Exception as exc:
+                print("  !! %-18s skipped: %s" % (slug, exc), file=sys.stderr)
+                continue
+            for line in text.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "/" in line:
+                    yield line
     return fetch
 
 
