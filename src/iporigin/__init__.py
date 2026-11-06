@@ -29,7 +29,7 @@ from .core import (
     is_datacenter,
 )
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 
 __all__ = [
     "ANONYMIZER_KINDS",
